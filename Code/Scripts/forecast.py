@@ -34,6 +34,8 @@ import io
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
+from google.cloud import storage
+from html_to_png import HTMLtoPNG
 
 
 
@@ -89,20 +91,24 @@ def create_single_model(E,theta,target,i_cols,lib, pred,HAB_embed,showPlot=False
     driver = f'{target}(t-0)'
     cols = i_cols
     pattern = re.compile(r"^CellCountDetection_Limit\(t-\d+\)$")
-    cols = [c for c in cols if not pattern.match(c)]
-    result = SMap(
-        dataFrame = HAB_embed, 
-        columns = cols,
-        target = driver,
-        lib = lib,  # Library from rows 0 to 700
-        pred = pred,
-        E = E+1,
-        theta=theta,
-        noTime=True,
-        showPlot = showPlot,
-        embedded=True,
-        ignoreNan = True
-    )
+    remove_cols_sub_strs = ["DENS", "TEMP"]
+    cols = [c for c in cols if (not pattern.match(c)) and not any(sub in c for sub in remove_cols_sub_strs)]
+    try:
+        result = SMap(
+            dataFrame = HAB_embed, 
+            columns = cols,
+            target = driver,
+            lib = lib,  # Library from rows 0 to 700
+            pred = pred,
+            E = E+1,
+            theta=theta,
+            noTime=True,
+            showPlot = showPlot,
+            embedded=True,
+            ignoreNan = True
+        )
+    except Exception as e:
+        print(pred, cols)
     return result
 
 def thresh_bloom_binary_prediction(obs,pred,threshold=8.03199999999999):
@@ -211,9 +217,9 @@ def clean_data(data, path=True):
     paper_data['DATE'] = corr_date
     return paper_data
 
-def get_live_data(service_json_path):
-    FILE_ID = "1bHrmzw5W5cz8DE-ggEwA3WSEDuszG72UUvKQRBBnLPA"     # your sheet
-    SERVICE_JSON = service_json_path
+def get_live_data():
+    FILE_ID = "1YxTrX480TEnvrDQFfbgW3WBhk1WZ3WoZO6aBEdqupkU"     # your sheet
+    SERVICE_JSON = load_google_credentials_path()  # path to your service account key file
 
     # --- auth ---
     creds = service_account.Credentials.from_service_account_file(
@@ -239,8 +245,8 @@ def get_live_data(service_json_path):
     df = pd.read_csv(fh)           # straight into pandas
     return df
 
-def adjust_live_data(past_data_path, target,json_key_path):  
-    live_df = get_live_data(json_key_path)
+def adjust_live_data(past_data_path, target):  
+    live_df = get_live_data()
     # Get the total counts 
     cells_cols = live_df.filter(regex=r"\(cells/L\)$").columns
     live_df[cells_cols] = live_df[cells_cols].apply(pd.to_numeric, errors="coerce")
@@ -385,6 +391,63 @@ def eval_ensemble(obs_blooms, pred_blooms):
     
     return [Accuracy, True_pos, False_pos, True_neg, False_neg]
 
+def upload_json_to_gcs(bucket_name, blob_name, data, credentials_path):
+    """
+    Upload a Python object as JSON to GCP bucket.
+    """
+    # Authenticate
+    client = storage.Client.from_service_account_json(credentials_path)
+    bucket = client.bucket(bucket_name)
+    blob = bucket.blob(blob_name)
+    
+    # Upload JSON
+    blob.upload_from_string(
+        data=json.dumps(data, indent=2),
+        content_type='application/json'
+    )
+    print(f"Uploaded JSON to gs://{bucket_name}/{blob_name}")
+    
+def load_google_credentials_path():
+    """
+    Resolve Google credentials path from environment variable.
+    Provide clear operator-facing errors.
+    """
+    env_var = "GOOGLE_APPLICATION_CREDENTIALS"
+    creds_path = os.getenv(env_var)
+
+    if not creds_path:
+        raise RuntimeError(
+            f"""
+            ❌ Google credentials not configured.
+
+            Environment variable {env_var} is missing.
+
+            Lab operator action:
+            docker run -e {env_var}=/run/secrets/key.json ...
+
+            See deployment instructions for credential mounting.
+            """.strip()
+                    )
+
+    path = Path(creds_path)
+
+    if not path.exists():
+        raise RuntimeError(
+                        f"""
+            ❌ Credential file not found.
+
+            Expected path:
+            {path}
+
+            Lab operator action:
+            Ensure the key file is mounted correctly:
+            docker run -v /host/key.json:{path}:ro ...
+            """.strip()
+        )
+
+    return str(path)
+
+
 
 def main():
     parser = argparse.ArgumentParser(description="Read a YAML config file.")
@@ -396,9 +459,16 @@ def main():
     for key, value in config.items():
         if key != "json_key_path":
             print(f"{key}: {value}")
+            
+    try:
+        load_google_credentials_path()
+    except RuntimeError as e:
+        print(e)
+        exit(1)
+
     t0 = perf_counter()
     #For one week out prediction
-    data = adjust_live_data(config['data_path'],config['target'],config['json_key_path'])   
+    data = adjust_live_data(config['data_path'],config['target'])
     parameters = process_parameters(config['parameters_path_1wk'])
     forecast, num_models = next_forecast(data,parameters,config['target'],bloom_thresh=config['bloom_thresh'],n=config['n'],p=config['p'],samp=config['samp'])
     #output to JSON
@@ -487,6 +557,20 @@ def main():
     # 3 ️⃣  write (or overwrite) the file
     with out_file.open("w") as f:
         json.dump(out_JSON_data, f, indent=2)  
+        
+    # UPLOAD TO GCS
+    # upload_json_to_gcs(
+    #     bucket_name=config['gcs_bucket'],
+    #     blob_name='outputs/bloom_forecast.json',
+    #     data=out_JSON_data,
+    #     credentials_path=config['json_key_path']
+    # )
+    
+    converter = HTMLtoPNG(output_dir="png_outputs", width=640, height=400)
+    converter.convert("./html/forecast.html")
+    # → saves to png_outputs/forecast_graph.png
+
+    
     '''
     testing = False
     if testing:

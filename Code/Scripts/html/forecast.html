@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forecast Graph</title>
+<style>
+    :root {
+        --color-up: #0bd3d4;
+        --color-down: #6b7280;
+        --bar-height: 256px;
+        --bar-width: 80px;
+        --gap: 2rem;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+        background: #111;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        font-family: sans-serif;
+        padding: 1rem;
+    }
+
+    .card {
+        width: min(95vw, 600px);
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        background: rgba(255,255,255,0.08);
+    }
+
+    h3 {
+        color: #fff;
+        font-size: 1.125rem;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    /* Three-column layout: axis | chart | axis */
+    .chart-outer {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    /*
+        Axis column.
+        Height must match bar height only (not the label block below).
+        We use a fixed height equal to --bar-height so the labels
+        Likely / 100% / ... / Unlikely are evenly spaced across the bar range.
+    */
+    .axis {
+        height: var(--bar-height);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.7rem;
+        color: #fff;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    /* Centre chart area holds zero-line + bars-row */
+    .chart-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+
+    /*
+        Zero line: absolutely positioned at exactly 50% of --bar-height.
+        This guarantees it crosses all pills at the midpoint (0%).
+    */
+    .zero-line {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: #fff;
+        top: calc(var(--bar-height) / 2);
+        z-index: 2;
+        pointer-events: none;
+    }
+
+    .bars-row {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        gap: var(--gap);
+        width: 100%;
+    }
+
+    .bar-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: var(--bar-width);
+        flex-shrink: 0;
+    }
+
+    /* The pill container */
+    .pill {
+        position: relative;
+        width: var(--bar-width);
+        height: var(--bar-height);
+        background: #374151;
+        border-radius: 9999px;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+
+    .pill-fill {
+        position: absolute;
+        left: 0;
+        right: 0;
+    }
+
+    /* Labels sit below the pill */
+    .bar-label {
+        margin-top: 0.5rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        color: #fff;
+        gap: 0.1rem;
+    }
+    .bar-label .week   { font-size: 0.75rem; }
+    .bar-label .likely { font-size: 0.875rem; font-weight: 700; }
+    .bar-label .pct    { font-size: 0.75rem; }
+
+    /* ── Tablet ── */
+    @media (max-width: 640px) {
+        :root {
+            --bar-height: 192px;
+            --bar-width: 60px;
+            --gap: 1rem;
+        }
+        .axis  { font-size: 0.6rem; }
+        h3     { font-size: 1rem; }
+        .bar-label .week   { font-size: 0.65rem; }
+        .bar-label .likely { font-size: 0.75rem; }
+        .bar-label .pct    { font-size: 0.65rem; }
+    }
+
+    /* ── Mobile ── */
+    @media (max-width: 420px) {
+        :root {
+            --bar-height: 140px;
+            --bar-width: 44px;
+            --gap: 0.6rem;
+        }
+        .axis  { font-size: 0.52rem; }
+        h3     { font-size: 0.9rem; margin-bottom: 1.25rem; }
+        .bar-label .week   { font-size: 0.6rem; }
+        .bar-label .likely { font-size: 0.7rem; }
+        .bar-label .pct    { font-size: 0.6rem; }
+    }
+</style>
+</head>
+<body>
+
+<div id="graph-root"></div>
+
+<script>
+    function renderGraph(rawForecasts) {
+        const forecasts = rawForecasts.map((item, i) => ({
+            week:       "Week " + (i + 1),
+            isUp:       item.Likeliness === "Likely",
+            confidence: Number(Number(item.CI).toFixed(2)),
+        }));
+
+        /*
+            Axis labels are evenly distributed across the full bar height.
+            Top = Likely (positive zone), Bottom = Unlikely (negative zone).
+            "0%" sits exactly at the midpoint, matching the zero-line CSS.
+        */
+        const axisLabels = ["Likely", "100%", "50%", "0%", "-50%", "-100%", "Unlikely"];
+        const axisHTML   = axisLabels.map(l => `<span>${l}</span>`).join("");
+
+        const barsHTML = forecasts.map(f => {
+            /*
+                confidence is 0–100.
+                The pill is split 50/50 at the midpoint.
+                So max fill = 50% of pill height = confidence of 100%.
+                barHeightPct = confidence / 2  → 0–50% of pill.
+                Upward fill:   bottom:50%, height = barHeightPct%
+                Downward fill: top:50%,    height = barHeightPct%
+            */
+            const barHeightPct = f.confidence / 2;
+            const fillStyle    = f.isUp
+                ? `bottom:50%; height:${barHeightPct}%; background:var(--color-up);`
+                : `top:50%;    height:${barHeightPct}%; background:var(--color-down);`;
+
+            return `
+                <div class="bar-col">
+                    <div class="pill">
+                        <div class="pill-fill" style="${fillStyle}"></div>
+                    </div>
+                    <div class="bar-label">
+                        <span class="week">${f.week}</span>
+                        <span class="likely">${f.isUp ? "Likely" : "Unlikely"}</span>
+                        <span class="pct">${f.isUp ? "+" : "-"}${f.confidence}%</span>
+                    </div>
+                </div>`;
+        }).join("");
+
+        document.getElementById("graph-root").innerHTML = `
+            <div class="card">
+                <h3>3 Week Forecast Confidence</h3>
+                <div class="chart-outer">
+                    <div class="axis">${axisHTML}</div>
+                    <div class="chart-area">
+                        <div class="zero-line"></div>
+                        <div class="bars-row">${barsHTML}</div>
+                    </div>
+                    <div class="axis">${axisHTML}</div>
+                </div>
+            </div>`;
+    }
+
+    // Parse raw data available locally and reassign the forecasts variable to reflect real data.
+    function startRender(data) {
+        try {
+            renderGraph(data);
+        } catch (e) {
+            console.error("Render crash:", e);
+        }
+        window.renderDone = true;
+    }
+
+</script>
+
+</body>
+</html>

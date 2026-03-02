@@ -3,9 +3,9 @@ parameters_path_1wk: "../Results/1000_sample_biolum_1_wk.csv"
 parameters_path_2wk: "../Results/1000_sample_biolum_2_wk.csv"
 parameters_path_3wk: "../Results/1000_sample_biolum_3_wk.csv"
 target: "Lingulodinium_polyedra"
-json_key_path: "../APIKey/optimal-cabinet-459820-c0-017b7385721a.json"
+json_key_path: "../APIKey/optimal-cabinet-459820-c0-6b66ed033a81.json"
 bloom_thresh: 11733.399999999963
 samp: 40
 n: 750
-p: 0.3
+p: 0.45
 gcs_bucket: my-frontend-bucket-459820

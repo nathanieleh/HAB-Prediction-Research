@@ -35,23 +35,6 @@ fi
 # echo ">>> Running Python script: $PYTHON_SCRIPT"
 # python "$PYTHON_SCRIPT"
 
-# # ── Move generated PNG(s) to ~ ───────────────────────────────────────────────
-# echo ">>> Moving PNG(s) from $PNG_OUTPUT_DIR to $DEST_DIR"
 
-# if [ ! -d "$PNG_OUTPUT_DIR" ]; then
-#     echo "ERROR: PNGOUTPUT directory not found at $PNG_OUTPUT_DIR"
-#     conda deactivate
-#     exit 1
-# fi
-
-# PNG_COUNT=$(find "$PNG_OUTPUT_DIR" -maxdepth 1 -name "*.png" | wc -l)
-# if [ "$PNG_COUNT" -eq 0 ]; then
-#     echo "WARNING: No PNG files found in $PNG_OUTPUT_DIR"
-# else
-#     mv "$PNG_OUTPUT_DIR"/*.png "$DEST_DIR/"
-#     echo ">>> Moved $PNG_COUNT PNG file(s) to $DEST_DIR"
-# fi
-
-# # ── Cleanup ───────────────────────────────────────────────────────────────────
 echo ">>> Deactivating conda environment"
 conda deactivate

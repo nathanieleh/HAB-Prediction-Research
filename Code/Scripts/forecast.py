@@ -217,9 +217,9 @@ def clean_data(data, path=True):
     paper_data['DATE'] = corr_date
     return paper_data
 
-def get_live_data():
+def get_live_data(config_path):
     FILE_ID = "1fsoKG9VZxRe5kCuvIV6nPfKu2SDeVA5B"     # your sheet/csv
-    SERVICE_JSON = load_google_credentials_path()  # path to your service account key file
+    SERVICE_JSON = load_google_credentials_path(config_path)  # path to your service account key file
 
     # --- auth ---
     creds = service_account.Credentials.from_service_account_file(
@@ -248,8 +248,8 @@ def get_live_data():
     df.columns = df.columns.str.strip()  # remove leading/trailing whitespace from column names
     return df
 
-def adjust_live_data(past_data_path, target):  
-    live_df = get_live_data()
+def adjust_live_data(past_data_path, target, config_path):  
+    live_df = get_live_data(config_path)
     # Get the total counts 
     cells_cols = live_df.filter(regex=r"\(cells/L\)$").columns
     live_df[cells_cols] = live_df[cells_cols].apply(pd.to_numeric, errors="coerce")
@@ -410,13 +410,13 @@ def upload_json_to_gcs(bucket_name, blob_name, data, credentials_path):
     )
     print(f"Uploaded JSON to gs://{bucket_name}/{blob_name}")
     
-def load_google_credentials_path():
+def load_google_credentials_path(path):
     """
     Resolve Google credentials path from environment variable.
     Provide clear operator-facing errors.
     """
     env_var = "GOOGLE_APPLICATION_CREDENTIALS"
-    creds_path = os.getenv(env_var)
+    creds_path = path  # os.getenv(env_var)  # <-- change to config lookup if using YAML
 
     if not creds_path:
         raise RuntimeError(
@@ -434,19 +434,19 @@ def load_google_credentials_path():
 
     path = Path(creds_path)
 
-    if not path.exists():
-        raise RuntimeError(
-                        f"""
-            ❌ Credential file not found.
+    # if not path.exists():
+    #     raise RuntimeError(
+    #                     f"""
+    #         ❌ Credential file not found.
 
-            Expected path:
-            {path}
+    #         Expected path:
+    #         {path}
 
-            Lab operator action:
-            Ensure the key file is mounted correctly:
-            docker run -v /host/key.json:{path}:ro ...
-            """.strip()
-        )
+    #         Lab operator action:
+    #         Ensure the key file is mounted correctly:
+    #         docker run -v /host/key.json:{path}:ro ...
+    #         """.strip()
+    #     )
 
     return str(path)
 
@@ -464,14 +464,14 @@ def main():
             print(f"{key}: {value}")
             
     try:
-        load_google_credentials_path()
+        load_google_credentials_path(path=config['json_key_path'])
     except RuntimeError as e:
         print(e)
         exit(1)
 
     t0 = perf_counter()
     #For one week out prediction
-    data = adjust_live_data(config['data_path'],config['target'])
+    data = adjust_live_data(config['data_path'],config['target'],config['json_key_path'])
     parameters = process_parameters(config['parameters_path_1wk'])
     forecast, num_models = next_forecast(data,parameters,config['target'],bloom_thresh=config['bloom_thresh'],n=config['n'],p=config['p'],samp=config['samp'])
     #output to JSON
@@ -569,8 +569,8 @@ def main():
     #     credentials_path=config['json_key_path']
     # )
     
-    converter = HTMLtoPNG(output_dir="png_outputs", width=640, height=400)
-    converter.convert("./html/forecast.html")
+    converter = HTMLtoPNG(output_dir="~", width=640, height=500)
+    converter.convert("Code/Scripts/html/forecast.html")
     # → saves to png_outputs/forecast_graph.png
 
     

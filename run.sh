@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+export GOOGLE_APPLICATION_CREDENTIALS="./Code/APIKey/hab.json"
+
 ENV_NAME="hab-prediction"                        # conda environment name
 REQUIREMENTS="requirements.txt"              # placeholder — swap with your actual yaml
 

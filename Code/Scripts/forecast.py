@@ -567,7 +567,7 @@ def main():
     # )
     
     converter = HTMLtoPNG(output_dir="png_outputs", width=640, height=400)
-    converter.convert("./html/forecast.html")
+    converter.convert("./Code/Scripts/html/forecast.html")
     # → saves to png_outputs/forecast_graph.png
 
     

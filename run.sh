@@ -6,11 +6,11 @@ REQUIREMENTS="requirements.txt"              # placeholder — swap with your ac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-PYTHON_SCRIPT="$SCRIPT_DIR/forecast.py"   # placeholder — swap with your script path
+PYTHON_SCRIPT="./Code/Scripts/forecast.py"   # placeholder — swap with your script path
 PNG_OUTPUT_DIR="$SCRIPT_DIR/PNGOUTPUT"
 DEST_DIR="~"
 
-source "$(conda info --base)/etc/profile.d/conda.sh"
+eval "$(conda shell.bash hook)"
 
 if conda env list | grep -q "^$ENV_NAME "; then
     echo ">>> Environment '$ENV_NAME' already exists, updating..."
@@ -27,14 +27,9 @@ else
     pip install -r requirements.txt
 fi
 
-# Activate inside the script via conda's shell hook
-# eval "$(conda shell.bash hook)"
-# conda activate "$ENV_NAME"
-# echo ">>> Activated: $CONDA_DEFAULT_ENV"
+
 
 # echo ">>> Running Python script: $PYTHON_SCRIPT"
-# python "$PYTHON_SCRIPT"
+python "$PYTHON_SCRIPT" "Code/Scripts/configs/nathan_config.yaml"
 
 
-echo ">>> Deactivating conda environment"
-conda deactivate

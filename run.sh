@@ -10,7 +10,7 @@ PYTHON_SCRIPT="$SCRIPT_DIR/forecast.py"   # placeholder — swap with your scrip
 PNG_OUTPUT_DIR="$SCRIPT_DIR/PNGOUTPUT"
 DEST_DIR="~"
 
-source ~/miniconda3/etc/profile.d/conda.sh
+source "$(conda info --base)/etc/profile.d/conda.sh"
 
 if conda env list | grep -q "^$ENV_NAME "; then
     echo ">>> Environment '$ENV_NAME' already exists, updating..."

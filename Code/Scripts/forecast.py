@@ -91,7 +91,7 @@ def create_single_model(E,theta,target,i_cols,lib, pred,HAB_embed,showPlot=False
     driver = f'{target}(t-0)'
     cols = i_cols
     pattern = re.compile(r"^CellCountDetection_Limit\(t-\d+\)$")
-    remove_cols_sub_strs = ["DENS", "TEMP"]
+    remove_cols_sub_strs = ["DENS", "TEMP", "Silicate", "Nitrate", "Ammonium", "Phosphate", "Nitrite"]
     cols = [c for c in cols if (not pattern.match(c)) and not any(sub in c for sub in remove_cols_sub_strs)]
     try:
         result = SMap(
@@ -218,7 +218,7 @@ def clean_data(data, path=True):
     return paper_data
 
 def get_live_data():
-    FILE_ID = "1YxTrX480TEnvrDQFfbgW3WBhk1WZ3WoZO6aBEdqupkU"     # your sheet
+    FILE_ID = "1fsoKG9VZxRe5kCuvIV6nPfKu2SDeVA5B"     # your sheet/csv
     SERVICE_JSON = load_google_credentials_path()  # path to your service account key file
 
     # --- auth ---
@@ -229,11 +229,13 @@ def get_live_data():
     drive = build("drive", "v3", credentials=creds)
 
     # --- export Google Sheet -> CSV ---
-    request = drive.files().export_media(
-        fileId=FILE_ID,
-        mimeType="text/csv",
-        # **required for Shared Drives** :contentReference[oaicite:0]{index=0}
-    )
+    # request = drive.files().export_media(
+    #     fileId=FILE_ID,
+    #     mimeType="text/csv",
+    #     # **required for Shared Drives** :contentReference[oaicite:0]{index=0}
+    # )
+    
+    request = drive.files().get_media(fileId=FILE_ID)  # for Shared Drives, use get_media instead of export_media
 
     fh = io.BytesIO()
     downloader = MediaIoBaseDownload(fh, request)
@@ -243,6 +245,7 @@ def get_live_data():
 
     fh.seek(0)                     # rewind the buffer
     df = pd.read_csv(fh)           # straight into pandas
+    df.columns = df.columns.str.strip()  # remove leading/trailing whitespace from column names
     return df
 
 def adjust_live_data(past_data_path, target):  

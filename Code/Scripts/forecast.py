@@ -569,7 +569,7 @@ def main():
     #     credentials_path=config['json_key_path']
     # )
     
-    converter = HTMLtoPNG(output_dir="~", width=640, height=500)
+    converter = HTMLtoPNG(output_dir="./hab-pngout/", width=640, height=500)
     converter.convert("Code/Scripts/html/forecast.html")
     # → saves to png_outputs/forecast_graph.png
 

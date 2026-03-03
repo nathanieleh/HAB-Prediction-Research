@@ -3,6 +3,8 @@ set -euo pipefail
 
 export GOOGLE_APPLICATION_CREDENTIALS="./Code/APIKey/hab.json"
 
+CONFIGFILE="./Code/Scripts/configs/nathan_config.yaml"
+
 ENV_NAME="hab-prediction"                        # conda environment name
 REQUIREMENTS="requirements.txt"              # placeholder — swap with your actual yaml
 
@@ -32,6 +34,17 @@ fi
 
 
 # echo ">>> Running Python script: $PYTHON_SCRIPT"
-python "$PYTHON_SCRIPT" "Code/Scripts/configs/nathan_config.yaml"
+python "$PYTHON_SCRIPT" "$CONFIGFILE"
 
 
+
+
+TARGET_DIR="./hab-pngout/forecast.png"
+SOURCE_FILE="/sccoos/manual_shore_station/DATA/TEMPERATURE/AutomatedPlotsForMSSwebsite/BIOLUM/"
+
+if [ -d "$TARGET_DIR" ] && [ -w "$TARGET_DIR" ]; then
+    mv "$SOURCE_FILE" "$TARGET_DIR"
+    echo "File moved to $TARGET_DIR"
+else
+    echo "Directory not accessible or doesn't exist: $TARGET_DIR"
+fi

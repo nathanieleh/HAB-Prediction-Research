@@ -144,23 +144,22 @@
 <div id="graph-root"></div>
 
 <script>
-    function getWeekRange(weekOffset) {
-        const now = new Date();
-        // Find the most recent Saturday (day 6)
-        const day = now.getDay(); // 0=Sun, 6=Sat
-        const daysToLastSat = (day === 6) ? 0 : (day + 1);
-        const thisSat = new Date(now);
-        thisSat.setDate(now.getDate() - daysToLastSat + (weekOffset * 7));
-        const thisSun = new Date(thisSat);
-        thisSun.setDate(thisSat.getDate() + 6); // Sat + 6 = following Sunday
+    function getWeekRange(weekOffset, baseDate) {
+        const base = new Date(baseDate + 'T00:00:00');
+        // Find the most recent Sunday (day 0)
+        const day = base.getDay(); // 0=Sun, 6=Sat
+        const thisSun = new Date(base);
+        thisSun.setDate(base.getDate() - day + (weekOffset * 7));
+        const thisSat = new Date(thisSun);
+        thisSat.setDate(thisSun.getDate() + 6); // Sun + 6 = Saturday
 
         const fmt = d => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-        return `${fmt(thisSat)} - ${fmt(thisSun)}`;
+        return `${fmt(thisSun)} - ${fmt(thisSat)}`;
     }
 
     function renderGraph(rawForecasts) {
         const forecasts = rawForecasts.map((item, i) => ({
-            week:       getWeekRange(i),
+            week:       getWeekRange(i, rawForecasts[0].Date),
             isUp:       item.Likeliness === "Likely",
             confidence: Number(Number(item.CI).toFixed(2)),
         }));
